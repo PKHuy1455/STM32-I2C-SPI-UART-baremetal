@@ -1,0 +1,5 @@
+../Src/lib/spi.c:5:6:SPI1_Init	4	static
+../Src/lib/spi.c:27:9:SPI1_TransmitReceive	16	static
+../Src/lib/spi.c:42:6:BMP280_WriteReg	16	static
+../Src/lib/spi.c:56:9:BMP280_ReadReg	24	static
+../Src/lib/spi.c:75:6:BMP280_Init	16	static

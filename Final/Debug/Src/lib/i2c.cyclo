@@ -1,0 +1,4 @@
+../Src/lib/i2c.c:5:6:I2C1_Init	1
+../Src/lib/i2c.c:26:6:I2C1_Write	3
+../Src/lib/i2c.c:37:9:I2C1_Read	2
+../Src/lib/i2c.c:51:7:Read_LM75_Temperature	1
