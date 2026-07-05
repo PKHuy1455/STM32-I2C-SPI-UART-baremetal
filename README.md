@@ -1,34 +1,53 @@
-# ⚡ STM32 Bare-Metal Sensor Monitor (I2C, SPI, UART)
+# ⚡ STM32 Bare-Metal Sensor System (I2C, SPI, UART)
 
-> A high-performance, register-level bare-metal firmware for **STM32F401CCU6** (Black Pill) that interfaces with a **BMP280** pressure/temperature sensor (via SPI) and an **LM75** temperature sensor (via I2C), transmitting real-time readings over UART. Built completely from scratch without ST HAL/LL libraries.
+> High-performance, register-level bare-metal firmware developed for the **STM32F401CCU6** (Black Pill) microcontroller. Interfaces with a **BMP280 Barometric Pressure & Temperature Sensor** (via SPI) and an **LM75 Temperature Sensor** (via I2C), transmitting real-time compensated values over **USART1**.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-STM32F401--BlackPill-blue?style=for-the-badge&logo=stmicroelectronics" alt="Platform"/>
   <img src="https://img.shields.io/badge/Language-C%20%2F%20Assembly-orange?style=for-the-badge" alt="Language"/>
-  <img src="https://img.shields.io/badge/Standard-CMSIS%20Struct%20Mapping-green?style=for-the-badge" alt="Standard"/>
+  <img src="https://img.shields.io/badge/Style-Register--Level-green?style=for-the-badge" alt="Style"/>
 </p>
 
 ---
 
-## 🚀 Key Features
+## 🚀 Project Overview
 
-* **Zero HAL/LL Overhead** — Directly manipulates hardware registers for maximum execution speed and minimal flash footprint.
-* **Professional CMSIS-Style Abstraction** — Implements a custom `stm32f401.h` header with clean `struct` memory-mappings for RCC, GPIO, USART, I2C, and SPI peripherals.
-* **SPI Driver & BMP280 Integration**:
-  * Configured in Master Mode (Mode 0) at ~1 MHz.
-  * Implements high-speed **6-byte SPI burst-reads** to retrieve pressure and temperature data in a single transaction.
-  * Full implementation of **Bosch calibration & compensation math** (32-bit/64-bit integer algorithms) for highly accurate physical values.
-* **I2C Driver & LM75 Integration**:
-  * Hardware I2C Master Mode operating at 100 kHz.
-  * Multi-byte read transfer sequence with proper START, Repeated START, ACK/NACK control, and STOP generation.
-  * 11-bit signed temperature calculation (0.125°C resolution).
-* **UART Logger**:
-  * Configured at 115200 baud with HSI 16 MHz clock.
-  * Custom safe float-to-string formatting (prints float values as integer + fractional parts to avoid heavy printf float library linking overhead).
+This repository demonstrates bare-metal firmware development using direct memory-mapped register pointer dereferencing. Designed entirely without dependency on ST HAL or LL libraries, this project showcases low-level microcontroller initialization, bus timing configurations, and sensor protocol implementations.
+
+### 🌟 Key Technical Highlights
+* **Direct Register Manipulation** — Utilizes raw memory-mapped pointer casting (e.g. `*(volatile uint32_t*)`) to configure GPIO registers, peripheral clocks, and communication controllers.
+* **Robust Hardware I2C Driver & LM75 Integration**:
+  * Configures hardware I2C1 Master Mode at **100 kHz** standard speed.
+  * Implements strict bus signaling sequences (START, Repeated START, ACK/NACK, and STOP conditions) compliant with the STM32 Reference Manual.
+  * Incorporates **software timeout safety loops** to prevent CPU lock-ups in case of communication or sensor disconnects.
+  * Handles signed 11-bit I2C temperature readings (0.5°C step resolution).
+* **Hardware SPI Driver & BMP280 Integration**:
+  * Configures SPI1 Master Mode (Mode 0) using software-driven chip select (`PA4`).
+  * Retrieves device-specific factory-calibrated parameters from internal sensor ROM.
+  * Implements **Bosch calibration & compensation math** using 64-bit integer calculations for high-precision physical units.
+* **USART1 Debug Logger**:
+  * Configured at **9600 baud** using a 16 MHz internal HSI clock.
+  * Safe float-to-string conversion separating integer and fractional parts, eliminating the dependency on heavy standard float-printf libraries.
 
 ---
 
-## 🏗️ Hardware Architecture & Connections
+## 🏗️ System Architecture & Connection
+
+```
+                   ┌──────────────────────────────────┐
+                   │        STM32F401CCU6 (MCU)       │
+                   │                                  │
+                   │   USART1    I2C1       SPI1      │
+                   │  (PA9/PA10) (PB6/PB7) (PA4..PA7) │
+                   └──────┬──────────┬──────────┬─────┘
+                          │          │          │
+                          ▼          ▼          ▼
+                    ┌──────────┐┌──────────┐┌──────────┐
+                    │  USB-TTL ││   LM75   ││  BMP280  │
+                    │  Logger  ││ Temp     ││ Pressure │
+                    │  9600 Bd ││ Sensor   ││ Sensor   │
+                    └──────────┘└──────────┘└──────────┘
+```
 
 ### Pin Mappings
 * **BMP280 Sensor (SPI1)**:
@@ -39,96 +58,83 @@
 * **LM75 Sensor (I2C1)**:
   * `PB6` ──▶ **SCL** (Serial Clock, AF4, Open-Drain)
   * `PB7` ──▶ **SDA** (Serial Data, AF4, Open-Drain)
-* **USB-to-UART Logger (USART1)**:
+* **USB-to-UART Converter (USART1)**:
   * `PA9` ──▶ **TX** (Transmit, AF7)
   * `PA10` ──▶ **RX** (Receive, AF7)
 
 ---
 
-## 📦 Project Structure
+## 📦 File Structure
 
 ```
 STM32-I2C-SPI-UART-baremetal/
 │
-├── Final/
-│   ├── Src/
-│   │   ├── lib/
-│   │   │   ├── stm32f401.h          # ⚡ CMSIS-style struct register definitions
-│   │   │   ├── GPIO.h                #    GPIO configuration macros
-│   │   │   ├── i2c.h / i2c.c         #    Hardware I2C driver + LM75 sensor functions
-│   │   │   ├── spi.h / spi.c         #    Hardware SPI driver + BMP280 sensor & math
-│   │   │   └── uart.h / uart.c       #    Hardware USART1 driver (115200 baud)
-│   │   │
-│   │   ├── main.c                   #    Main monitoring loop (burst reads + print)
-│   │   ├── syscalls.c
-│   │   └── sysmem.c
+├── Src/
+│   ├── lib/
+│   │   ├── GPIO.h                # RCC & GPIO register definitions
+│   │   ├── i2c.h / i2c.c         # Hardware I2C driver & LM75 monitoring
+│   │   ├── spi.h / spi.c         # Hardware SPI driver & BMP280 calibration math
+│   │   └── uart.h / uart.c       # Hardware USART1 driver (9600 baud)
 │   │
-│   ├── Startup/
-│   │   └── startup_stm32f401ccux.s  #    Reset handler and vector table
-│   │
-│   ├── STM32F401CCUX_FLASH.ld       #    Linker script (defines memory layout)
-│   └── Final Debug.launch           #    Debug launcher configuration
+│   ├── main.c                   # Main system monitoring loop
+│   ├── syscalls.c               # Standard system calls
+│   └── sysmem.c                 # Memory management functions
 │
-├── .gitignore                       #    Ignores build/Debug outputs
-└── README.md
+├── Startup/
+│   └── startup_stm32f401ccux.s  # Vector table & reset handler in Assembly
+│
+├── STM32F401CCUX_FLASH.ld       # Linker script defining flash/RAM layout
+├── .gitignore                   # Ignore build artifacts (Debug/)
+├── INTERVIEW_PREP.md            # 📚 Study guide with core bare-metal concepts
+└── README.md                    # Project documentation
 ```
 
 ---
 
 ## ⚙️ How to Build & Run
 
-### 1. Requirements
-* **STM32CubeIDE** (or GCC ARM Embedded Toolchain + Make)
-* **Black Pill F401CCU6** board
-* **ST-Link V2** debugger/programmer
-* USB-to-UART converter (PL2303, CP2102, or similar) connected to PA9/PA10
-
-### 2. Importing into STM32CubeIDE
-1. Open STM32CubeIDE.
-2. Select **File > Import...**
-3. Choose **General > Existing Projects into Workspace**.
-4. Select the `Final/` directory as the root directory.
-5. Click **Finish**.
-
-### 3. Running & Monitoring
-* Connect ST-Link V2 to the Black Pill board.
-* Connect USB-to-UART converter to PA9 (TX) and GND, then plug it into your computer.
-* Open a serial terminal (PuTTY, TeraTerm, or Arduino Serial Monitor) at **115200 baud**.
-* Build and flash the project from the IDE. You will see output like this:
-
-```text
-=== STM32 Baremetal Sensor Monitor Started ===
-BMP280: 25.14 C, 1013.25 hPa | LM75: 25.50 C
-BMP280: 25.15 C, 1013.24 hPa | LM75: 25.50 C
-BMP280: 25.17 C, 1013.26 hPa | LM75: 25.62 C
-```
+1. **Prerequisites**: Install **STM32CubeIDE** (or GCC ARM Toolchain + Make).
+2. **Importing Project**:
+   * Open STM32CubeIDE.
+   * Go to **File > Import... > General > Existing Projects into Workspace**.
+   * Browse to the repository root directory and import it.
+3. **Build & Flash**:
+   * Connect an **ST-Link V2** programmer to the target Black Pill board.
+   * Press **Build** (Hammer icon) and then **Debug** or **Run** (Play icon).
+4. **Read Output**:
+   * Connect a USB-to-UART module to PA9 (TX) and GND.
+   * Open your favorite serial monitor (PuTTY, TeraTerm) at **9600 baud**.
+   * Monitor output in real-time:
+     ```text
+     BMP280: 25.14 C, 101325.04 Pa | LM75: 25.50 C
+     BMP280: 25.15 C, 101324.98 Pa | LM75: 25.50 C
+     ```
 
 ---
 
-## 💡 Key Engineering Details
+## 💡 Engineering Implementation Details
 
-### ⚡ Struct Memory Mapping Abstraction
-Using C structures to map hardware registers allows compiler-level offset checks, preventing manual register offset calculation mistakes:
+### Low-Level Register Mapping
+Hardware registers are defined using memory-mapped pointers with the C `volatile` keyword to tell the compiler that these memory slots can be modified by the hardware asynchronously:
 ```c
-typedef struct {
-    volatile uint32_t MODER;         /* GPIO port mode register,          Address offset: 0x00 */
-    volatile uint32_t OTYPER;        /* GPIO port output type register,   Address offset: 0x04 */
-    volatile uint32_t OSPEEDR;       /* GPIO port output speed register,  Address offset: 0x08 */
-    volatile uint32_t PUPDR;         /* GPIO port pull-up/pull-down reg,  Address offset: 0x0C */
-    volatile uint32_t IDR;           /* GPIO port input data register,    Address offset: 0x10 */
-    volatile uint32_t ODR;           /* GPIO port output data register,   Address offset: 0x14 */
-    volatile uint32_t BSRR;          /* GPIO port bit set/reset register, Address offset: 0x18 */
-    volatile uint32_t LCKR;          /* GPIO port configuration lock reg, Address offset: 0x1C */
-    volatile uint32_t AFR[2];        /* GPIO alternate function registers,Address offset: 0x20-0x24 */
-} GPIO_TypeDef;
+#define SPI1_BASE       0x40013000
+#define SPI1_CR1        (*((volatile uint32_t*)(SPI1_BASE + 0x00)))
+#define SPI1_SR         (*((volatile uint32_t*)(SPI1_BASE + 0x08)))
+#define SPI1_DR         (*((volatile uint32_t*)(SPI1_BASE + 0x0C)))
 ```
 
-### 🧠 High-Efficiency Burst Readings
-Rather than reading registers one by one (requiring toggling the SPI Chip Select pin 6 times), the firmware toggles CS once and does a continuous read of 6 registers (`0xF7` through `0xFC`) to retrieve raw pressure and temperature simultaneously. This saves CPU clock cycles and lowers bus utilization.
+### Timeout Safety Loops
+To ensure the system remains responsive even if communication fails, all block-waiting loops include a simple decrementing timeout counter:
+```c
+uint32_t timeout = 50000;
+while (!(I2C1_SR1 & (1 << 0)) && --timeout); // Wait for SB
+if (timeout == 0) return -999.0f;            // Safely exit rather than lock up
+```
+This is a standard industrial safety pattern for mission-critical embedded software.
 
 ---
 
 ## 📬 Contact
 * **Email**: [huyphan1455@gmail.com](mailto:huyphan1455@gmail.com)
-* **LinkedIn**: [linkedin/phankhachuy](https://www.linkedin.com/in/phankhachuy/)
+* **LinkedIn**: [phankhachuy](https://www.linkedin.com/in/phankhachuy/)
 * **GitHub**: [@PKHuy1455](https://github.com/PKHuy1455)
