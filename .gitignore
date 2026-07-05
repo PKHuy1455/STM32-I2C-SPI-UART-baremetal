@@ -13,3 +13,6 @@ Debug/
 .settings/
 .project
 .cproject
+
+# Local interview preparation guide
+INTERVIEW_PREP.md
