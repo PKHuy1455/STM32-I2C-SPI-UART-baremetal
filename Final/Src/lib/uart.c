@@ -1,28 +1,48 @@
 #include "uart.h"
 #include "GPIO.h"
 #include <stdint.h>
-void UART1_Init(void) {
-    // Bật clock cho GPIOA và USART1
-    Rcc_AHB1ENR |= (1 << 0);  // Enable clock GPIOA
-    Rcc_APB2ENR |= (1 << 4);  // Enable clock USART1
 
-    // Cấu hình chân PA9 (TX) và PA10 (RX)
-    GpioA_MODER |= (0b10 << 18) | (0b10 << 20);  // Alternate Function cho PA9, PA10
-    GpioA_AFRH |= (0b0111 << 4) | (0b0111 << 8); // AF7 cho USART1
+void USART1_Init(uint32_t baud) {
+    /* 1. Enable GPIOA and USART1 clocks */
+    RCC->AHB1ENR |= (1 << 0);  // Enable GPIOA clock
+    RCC->APB2ENR |= (1 << 4);  // Enable USART1 clock
 
-    // Cấu hình USART1
-    USART_BRR = (16 << 4) | 5;  // Baud rate 9600 @16MHz
-    USART_CR1 |= (1 << 2) | (1 << 3);  // Enable RX, TX
-    USART_CR1 |= (1 << 13);            // Enable USART1
+    /* 2. Configure PA9 (TX) and PA10 (RX) as Alternate Function Mode */
+    GPIOA->MODER &= ~((3 << (2 * 9)) | (3 << (2 * 10)));
+    GPIOA->MODER |= ((2 << (2 * 9)) | (2 << (2 * 10))); // Alternate function mode
+
+    /* 3. Map Alternate Function AF7 (USART1) to PA9 & PA10 */
+    GPIOA->AFR[1] &= ~((0xF << (4 * (9 - 8))) | (0xF << (4 * (10 - 8))));
+    GPIOA->AFR[1] |= ((7 << (4 * (9 - 8))) | (7 << (4 * (10 - 8)))); // AF7
+
+    /* 4. Configure Baud Rate (Assuming 16 MHz HSI Clock) */
+    // Divider = f_CK / (16 * baud)
+    // For 115200: 16000000 / (16 * 115200) = 8.68
+    // Mantissa = 8, Fraction = 0.68 * 16 = 10.88 ~ 11 -> BRR = (8 << 4) | 11 = 0x8B
+    if (baud == 115200) {
+        USART1->BRR = (8 << 4) | 11;
+    } else if (baud == 9600) {
+        // Divider = 16000000 / (16 * 9600) = 104.16
+        // Mantissa = 104, Fraction = 0.16 * 16 = 2.56 ~ 3 -> BRR = (104 << 4) | 3 = 0x683
+        USART1->BRR = (104 << 4) | 3;
+    } else {
+        // Generic divider calculation
+        uint32_t div = 16000000 / baud;
+        USART1->BRR = div;
+    }
+
+    /* 5. Enable Transmitter, Receiver, and USART1 Peripheral */
+    USART1->CR1 = (1 << 13) | (1 << 3) | (1 << 2); // UE, TE, RE
 }
 
-void USART2_SendChar(char c) {
-    while (!(USART_SR & USART_SR_TXE));  // Chờ TXE (có thể gửi dữ liệu)
-    USART_DR = c;
+void USART1_SendChar(char c) {
+    /* Wait until Transmit Data Register is empty (TXE bit 7) */
+    while (!(USART1->SR & (1 << 7)));
+    USART1->DR = c;
 }
 
-void USART2_SendString(const char *str) {
+void USART1_SendString(const char *str) {
     while (*str) {
-        USART2_SendChar(*str++);
+        USART1_SendChar(*str++);
     }
 }

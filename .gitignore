@@ -1,0 +1,16 @@
+# Build directories
+Final/Debug/
+Debug/
+
+# Temporary files
+*.o
+*.su
+*.d
+*.elf
+*.bin
+*.map
+
+# IDE metadata
+.settings/
+.project
+.cproject

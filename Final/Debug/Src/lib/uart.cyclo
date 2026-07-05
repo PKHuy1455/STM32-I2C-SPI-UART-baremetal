@@ -1,3 +1,0 @@
-../Src/lib/uart.c:4:6:UART1_Init	1
-../Src/lib/uart.c:19:6:USART2_SendChar	2
-../Src/lib/uart.c:24:6:USART2_SendString	2
