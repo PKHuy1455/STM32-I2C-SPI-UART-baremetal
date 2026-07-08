@@ -85,7 +85,6 @@ STM32-I2C-SPI-UART-baremetal/
 │
 ├── STM32F401CCUX_FLASH.ld       # Linker script defining flash/RAM layout
 ├── .gitignore                   # Ignore build artifacts (Debug/)
-├── INTERVIEW_PREP.md            # 📚 Study guide with core bare-metal concepts
 └── README.md                    # Project documentation
 ```
 
